@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>翻转卡片</title>
+</head>
+<style>
+	html {
+		--color: cornflowerblue;
+	}
+	body {
+		margin: 0;
+		padding: 0;
+		display: flex;
+		justify-content: center;
+	}
+
+	.page {
+		height: 100vh;
+		display: flex;
+		justify-content: flex-end;
+		flex-direction: column;
+	}
+
+	.container {
+		/* position: absolute;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%); */
+		margin: 0 auto;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-around;
+		/* width: 100vw; */
+		width: 500px;
+		box-sizing: border-box;
+		border: 10px ridge var(--color);
+		padding: 5px;
+		background: #eaebec;
+	}
+
+	.card {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		/* width: 20vw;
+		height: 20vw; */
+		width: 100px;
+		height: 100px;
+		margin: 5px 0;
+		border-radius: 5px;
+		box-shadow: 0 0 5px 0 #000;
+		cursor: pointer;
+		transition: all 0.5s;
+		background-color: #ffffff;
+		/* 可以使子元素的 translateZ 改变层级 */
+		transform-style: preserve-3d;
+	}
+
+	@media screen and (max-width: 500px) {
+		.container {
+			width: 100vw;
+		}
+		.card {
+			width: 20vw;
+			height: 20vw;
+			margin: 1vw;
+		}
+	}
+
+	.card:hover {
+		background-color: #f1f2f3;
+	}
+	.card:hover::before {
+		filter: brightness(1.25)
+	}
+
+
+	.card::before {
+		content: '';
+		position: absolute;
+		box-sizing: border-box;
+		border: 3px solid #ffffff;
+		width: 100%;
+		height: 100%;
+		transition: all 1s;
+		border-radius: 5px;
+		background-color: var(--color);
+		transform: perspective(200px) translateZ(-1px);
+	}
+
+	.flipToBack {
+		animation: flipToBack 1s ease-in-out both;
+	}
+
+	.flipToFront {
+		animation: flipToFront 1s ease-in-out both;
+	}
+
+	@keyframes flipToBack {
+		0% {
+			transform: perspective(200px) rotateY(0deg) translateZ(0px);
+		}
+
+		10% {
+			transform: perspective(200px) rotateY(0deg) translateZ(10px);
+		}
+
+		90% {
+			transform: perspective(200px) rotateY(180deg) translateZ(-10px);
+		}
+
+		100% {
+			transform: perspective(200px) rotateY(180deg) translateZ(0px);
+		}
+	}
+
+	@keyframes flipToFront {
+		0% {
+			transform: perspective(200px) rotateY(180deg) translateZ(0px);
+		}
+
+		10% {
+			transform: perspective(200px) rotateY(180deg) translateZ(-10px);
+		}
+
+		90% {
+			transform: perspective(200px) rotateY(0deg) translateZ(10px);
+		}
+
+		100% {
+			transform: perspective(200px) rotateY(0deg) translateZ(0px);
+		}
+	}
+
+	.btn-area {
+		/* padding: 10px 0; */
+		display: flex;
+		justify-content: center;
+	}
+
+	.button {
+		background-color: var(--color);
+		color: #ffffff;
+		padding: 10px;
+		margin: 5px;
+		font-size: 16px;
+		text-shadow: 1px 1px 2px #666;
+		border-radius: 5px;
+		border: 1px solid var(--color);
+		box-shadow: 0 0 5px var(--color);
+		transition: all .3s;
+	}
+	.button:hover {
+		cursor: pointer;
+		font-size: 18px;
+		filter: brightness(1.25)
+	}
+
+	/* 文字区域 */
+	.text-area {
+		display: flex;
+		justify-content: center;
+		padding: 20px 0 30px 0;
+	}
+	.count {
+		font-size: 30px;
+		color: var(--color);
+		font-weight: 500;
+	}
+
+</style>
+
+<body>
+	<div class="page">
+		<div class="btn-area">
+			<button class="button" onclick="init()">replay</button>
+			<button class="button" onclick="changeTheme()">theme</button>
+			<button class="button" onclick="changeTotal()">total</button>
+		</div>
+		<div class="text-area">
+			<div>
+				<span>总次数：</span>
+				<span class="count">0</span>
+			</div>
+		</div>
+		<div class="container">
+	
+		</div>
+	</div>
+	<!-- <div class="card flipToFront shine">
+		<div class="card-content ">
+			<h1>1</h1>
+		</div>
+	</div>
+	<div class="card flipToFront">
+		<div class="card-content ">
+			<h1>2</h1>
+		</div>
+	</div> -->
+	<script>
+		class Card {
+			constructor(value) {
+				this.value = value
+				this.isFrezen = false
+				this.node = this.createNode(value)
+			}
+
+			createNode(value) {
+				const node = document.createElement('div')
+				node.innerHTML = `
+					<div class="card flipToFront">
+						<div class="card-content">
+							<h1>${value}</h1>
+						</div>
+					</div>
+				`.trim()
+				return node.firstChild
+			}
+		}
+
+		let controller
+
+		const settings = {
+			colorIndex: 0,
+			total: 16
+		}
+
+
+		// const contents = '0123456789ABCDEFGHIJKLMNOPQRESUVWXYZ'
+
+
+		let timerArray = [] // 存放定时器
+		init()
+		function init() {
+			controller = {
+				timer: undefined,
+				isAllowClick: false,
+				compareBox: [],
+				cardStateMap: new WeakMap(),
+				count: 0,
+			}
+			setCount(0)
+
+			const nodes = []
+			for (let i = 0; i < settings.total; i++) {
+				const card = new Card(Math.floor(i / 2).toString())
+				controller.cardStateMap.set(card.node, { canClick: true, ...card })
+				card.node.addEventListener('click', flip)
+				nodes.push(card.node)
+			}
+			shuffle()
+
+			timerArray.forEach(timer => window.clearInterval(timer)) // 清空重置之前设置的定时器
+			let t = 3
+			let timer = setInterval(() => {
+				--t
+				if (t <= 0) {
+					document.querySelectorAll('.card').forEach(item =>{
+						if (item.classList.contains('flipToFront')) {
+							doFlip.call(item, false)
+						}
+					})
+					controller.isAllowClick = true
+					window.clearInterval(timer)
+				}
+			}, 1000);
+			timerArray.push(timer) // 定义定时器后要存入定时器数组，方便下次清空
+
+			function shuffle() {
+				const container = document.querySelector('.container')
+				container.innerHTML = ''
+				let current
+				while(current = nodes.splice(rand(0, nodes.length), 1)[0]) {
+					container.appendChild(current)
+				}
+			}
+		}
+
+
+		function rand(min, max) {
+			return Math.floor(Math.random() * (max - min))  + min
+		}
+
+		function flip() {
+			let ops = controller.cardStateMap.get(this)
+			if (ops.isFrezen || controller.compareBox.length >= 2) {
+				return
+			}
+			console.log(ops.canClick)
+			if (ops.canClick === true) {
+				ops.canClick = false
+				timer = setTimeout(() => {
+					ops.canClick = true
+				}, 1000)
+				controller.isAllowClick && doFlip.call(this)
+			}
+		}
+
+		function doFlip(isCompare = true) {
+			this.classList.toggle('flipToFront')
+			this.classList.toggle('flipToBack')
+			
+			isCompare && addToCompareBox(this)
+		}
+
+		function addToCompareBox(node) {
+			if (controller.compareBox.length >= 2) {
+				compare(controller)
+			} else if (controller.compareBox.length === 1) {
+				controller.compareBox.push(node)
+				controller.cardStateMap.get(node).isFrezen = true
+				compare(controller)
+			} else {
+				controller.compareBox.push(node)
+				controller.cardStateMap.get(node).isFrezen = true
+			}
+		}
+
+		function setCount(count) {
+			document.querySelector('.count').innerHTML = count
+		}
+
+		function compare(controller) {
+			setCount(++controller.count)
+			const [node0, node1] = [...controller.compareBox]
+			const [ops0, ops1] = [
+				controller.cardStateMap.get(node0), 
+				controller.cardStateMap.get(node1)
+			]
+			if (ops0.value === ops1.value) {
+				console.log('success', ops0.value, ops1.value)
+			} else {
+				console.log('failure')
+        setTimeout(() => {
+					ops0.isFrezen = false
+					ops1.isFrezen = false
+          doFlip.call(node0 ,false)
+          doFlip.call(node1 ,false)
+        }, 1500);
+			}
+			setTimeout(() => {
+				controller.compareBox = []
+			}, 1000);
+		}
+
+		const colors = ['cornflowerblue', 'red', 'orange', 'yellow', 'seagreen', 'violet']
+		function changeTheme() {
+			if (++settings.colorIndex === colors.length) {
+				settings.colorIndex = 0
+			}
+			document.querySelector('html').style.setProperty('--color', colors[settings.colorIndex])
+		}
+
+		
+		function changeTotal(number) {
+			const numbers = [16, 20 , 24]
+			settings.total += 4
+			if (settings.total > 24) {
+				settings.total = 16
+			}
+			init()
+		}
+	</script>
+</body>
+
+</html>
