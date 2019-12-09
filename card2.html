@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Card 2</title>
+</head>
+<style>
+  html {
+    --color: cornflowerblue;
+    --card-size: 100px;
+    --card-speed: 1s;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    /* display: flex;
+		justify-content: center; */
+  }
+
+  .page {
+    height: 100vh;
+    display: flex;
+    flex-flow: column;
+    /* justify-content: flex-end; */
+    justify-content: space-between;
+    /* align-items: center; */
+    max-width: 480px;
+    margin: auto;
+  }
+
+  .container {
+    box-sizing: border-box;
+    max-width: 480px;
+    height: auto;
+    /* border: 1px solid var(--color); */
+    position: relative;
+
+  }
+
+  /* 卡片 */
+  .card {
+    width: var(--card-size);
+    height: var(--card-size);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    border-radius: 5px;
+    box-shadow: 0 0 5px 0 #000;
+    cursor: pointer;
+    background-color: #ffffff;
+
+    transition: all 1s;
+    transition: all var(--card-speed);
+    /* 可以使子元素的 translateZ 改变层级 */
+    transform-style: preserve-3d;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 3px solid #ffffff;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: var(--color);
+    transform: perspective(200px) translateZ(-1px);
+    /* 置于底层 */
+  }
+
+  .flipToBack {
+    animation: flipToBack 1s ease-in-out both;
+  }
+
+  .flipToFront {
+    animation: flipToFront 1s ease-in-out both;
+  }
+
+  @keyframes flipToBack {
+    0% {
+      transform: perspective(200px) rotateY(0deg) translateZ(0px);
+    }
+
+    10% {
+      transform: perspective(200px) rotateY(0deg) translateZ(10px);
+    }
+
+    90% {
+      transform: perspective(200px) rotateY(180deg) translateZ(-10px);
+    }
+
+    100% {
+      transform: perspective(200px) rotateY(180deg) translateZ(0px);
+    }
+  }
+
+  @keyframes flipToFront {
+    0% {
+      transform: perspective(200px) rotateY(180deg) translateZ(0px);
+    }
+
+    10% {
+      transform: perspective(200px) rotateY(180deg) translateZ(-10px);
+    }
+
+    90% {
+      transform: perspective(200px) rotateY(0deg) translateZ(10px);
+    }
+
+    100% {
+      transform: perspective(200px) rotateY(0deg) translateZ(0px);
+    }
+  }
+
+  .text-area {
+    padding: 0 20px;
+  }
+  .text-area>p {
+    margin: 5px;
+  }
+
+  /* button */
+  .btn-area {
+		/* padding: 10px 0; */
+		display: flex;
+		justify-content: center;
+	}
+  .button {
+		background-color: var(--color);
+		color: #ffffff;
+		padding: 10px;
+		margin: 5px;
+		font-size: 16px;
+		text-shadow: 1px 1px 2px #666;
+		border-radius: 5px;
+		border: 1px solid var(--color);
+		box-shadow: 0 0 5px var(--color);
+		transition: all .3s;
+	}
+	.button:hover {
+		cursor: pointer;
+		font-size: 18px;
+		filter: brightness(1.25)
+	}
+</style>
+
+<body>
+  <div class="page">
+    <div class="text-area">
+      <p>1. 点击2个卡片，可以交换位置</p>
+      <p>2. 点击replay按钮，可以重新发牌</p>
+      <p>3. 点击shuffle按钮，可以洗牌</p>
+    </div>
+    <div class="btn-area">
+      <button class="button" onClick="replay()">replay</button>
+      <button class="button" onClick="shuffle()">shuffle</button>
+      <button class="button" onClick="danger()" id="danger" style="background: red;">don't touch!</button>
+    </div>
+    <div class="container">
+
+    </div>
+  </div>
+  <!-- <div class="card flipToFront shine">
+		<div class="card-content ">
+			<h1>1</h1>
+		</div>
+	</div>
+	<div class="card flipToFront">
+		<div class="card-content ">
+			<h1>2</h1>
+		</div>
+	</div> -->
+  <script>
+
+    // 工具方法
+    const utils = {
+      random(min, max) {
+        return Math.floor(Math.random() * (max - min)) + min
+      },
+      randomSlice(range) {
+        return range.splice(this.random(0, range.length), 1)[0]
+      },
+      pos(x, y) {
+        return { x, y }
+      },
+      posEqual(p1, p2) {
+        return p1.x === p2.x && p1.y === p2.y
+      },
+      throttle(fn, delay = 100) {
+        let canRun = true
+        return (...arg) => {
+          if (canRun) {
+            canRun = false
+
+            fn(...arg)
+
+            let timer = setTimeout(() => {
+              canRun = true
+              window.clearTimeout(timer)
+              timer = null
+            }, delay)  
+          }
+        }
+      }
+    }
+
+    // Model
+    const M = {
+      row: 5, // 行数
+      col: 4, // 列数
+      cards: [],
+      contents: '0123456789ABCDEFGHIJKLMNOPQRESUVWXYZ',
+
+      create() {
+        this.cards = []
+        const use = this.randomUseValues()
+        for (let x = 0; x < this.row; x++) {
+          this.cards[x] = []
+          for (let y = 0; y < this.col; y++) {
+            this.cards[x][y] = utils.randomSlice(use)
+          }
+        }
+        console.log(this.cards)
+      },
+
+      show() {
+        let str = ''
+        for (let y = this.col - 1; y >= 0; y--) {
+          for (let x = 0; x < this.row; x++) {
+            str += `\t ${this.cards[x][y]} (${x},${y})`
+          }
+          str += '\n'
+        }
+        return str
+      },
+
+      // 获取卡片内容数组，每个元素有2份
+      randomUseValues() {
+        const contentArr = [...this.contents]
+        const use = []
+        const count = this.row * this.col / 2 	// 随机内容个数 = 总数量 / 2; 因为一个内容要出现2次
+        for (let i = 0; i < count; i++) {
+          use.push(utils.randomSlice(contentArr))
+        }
+        return [...use, ...use]
+      },
+    }
+
+    // View
+    const V = {
+      cardMap: new WeakMap(),
+      gap: 5,
+
+      init(M, C) {
+        this.M = M
+        this.C = C
+        this.container = document.querySelector('.container')
+        this.addClickEvent() // 相同事件多次安装也会多次执行，所以只能装一次
+      },
+
+      reStart() {
+        this.cardMap = new WeakMap()
+        this.container.innerHTML = ''
+        this.cardSize = this.container.clientWidth / this.M.col // 卡片边长
+        this.container.style.height = this.M.row * this.cardSize + 'px'
+        this.putIn()
+      },
+
+      createCardElement(value) {
+        const card = document.createElement('div')
+        card.innerHTML = `
+					<div class="card">
+						<div class="card-content">
+							<h3 class="value">${value}</h3>
+						</div>
+					</div>
+				`.trim()
+        return card.firstChild
+      },
+
+      putIn() {
+        const { row, col, cards } = this.M
+        let cardElement
+        document.querySelector('html').style.setProperty('--card-size', this.cardSize - this.gap * 2 + 'px')
+        for (let x = 0; x < row; x++) {
+          for (let y = 0; y < col; y++) {
+
+            cardElement = this.createCardElement(`${cards[x][y]} (${x},${y})`) // 创建卡片节点 
+
+            const state = { 
+              pos: { x, y }, 
+              value: cards[x][y], 
+              element: cardElement 
+            }
+            this.cardMap.set(cardElement, state)
+
+            // this.adjustPos(cardElement) // 调整位置
+            this.container.appendChild(cardElement) // 放入容器
+          }
+        }
+      },
+
+      delayAdjustPos(costTime = 3000) {
+        const nodes = [...this.container.childNodes].filter(node => node.nodeType === 1)
+        const interval = costTime / nodes.length
+        let node
+        let timer = setInterval(() => {
+          if (node = nodes.pop()) {
+            this.adjustPos(node)
+          } else {
+            window.clearInterval(timer)
+            timer = null
+          }
+        }, interval)
+      },
+
+      adjustPos(cardElement) {
+        const { pos: { x, y } } = this.cardMap.get(cardElement)
+        cardElement.classList.add('flipToFront')
+        cardElement.style.bottom = `${ (x * this.cardSize) + this.gap }px`
+        cardElement.style.left   = `${ (y * this.cardSize) + this.gap }px`
+      },
+
+      addClickEvent() {
+        this.container.addEventListener('click', this.onClick.bind(this))
+      },
+
+      onClick(e) {
+        const node = e.path.find(node => this.cardMap.has(node))
+        const state = this.cardMap.get(node)
+        state && this.C.handleClick(node)
+      },
+    }
+
+    // Controller
+    const C = {
+      pair: new Set(),
+
+      init(M, V) {
+        this.M = M
+        this.V = V
+      },
+
+      reStart() {
+        this.pair.clear()
+      },
+
+      // 2卡交换 参数是2个位置
+      exchangeByPos(pos1, pos2) {
+        const cards = [...this.V.container.childNodes].filter(el => {
+          const state = this.V.cardMap.get(el)
+          return state && (utils.posEqual(state.pos, pos1) || utils.posEqual(state.pos, pos2))
+        })
+        if (cards.length === 2) {
+          this.exchange(...cards)
+        } else {
+          console.log(`坐标错误，找到 ${cards.length} 个`)
+        }
+      },
+
+      // 2卡交换 参数是2个元素节点
+      exchange(card1, card2) {
+        let [info1, info2] = [
+          this.V.cardMap.get(card1),
+          this.V.cardMap.get(card2)
+        ]
+        ;[info1.pos, info2.pos] = [info2.pos, info1.pos]
+
+        this.V.adjustPos(card1)
+        this.V.adjustPos(card2)
+      },
+
+      shuffle() {
+        const states = [...this.V.container.childNodes]
+          .filter(({ nodeType }) => nodeType === 1)
+          .map(node => this.V.cardMap.get(node))
+				const poses = states.map(({ pos }) => pos)
+				let current
+        states.forEach(state => {
+          state.pos = poses.splice(utils.random(0, poses.length), 1)[0]
+        })
+			},
+
+      // 处理点击
+      handleClick(node) {
+        this.pair.add(node)
+        if (this.pair.size == 2) {
+          this.exchange(...this.pair)
+          this.pair.clear()
+        }
+      }
+    }
+
+    function replay_raw() {
+        console.log('replay')
+        M.create()
+        console.log(M.show())
+        C.reStart()
+        V.reStart()
+        V.delayAdjustPos()
+    }
+    const replay = utils.throttle(replay_raw, 3000)
+
+    function shuffle_raw(costTime) {
+      C.shuffle()
+      V.delayAdjustPos(costTime)
+    }
+    const shuffle = utils.throttle(shuffle_raw, 0)
+
+    const dangerCtrl = {
+      timer: null,
+      speed: 3
+    } 
+    function danger() {
+      dangerCtrl.speed--
+      console.log(dangerCtrl.speed)
+      if (dangerCtrl.speed < 0) {
+        document.querySelector('#danger').innerHTML = 'dont\'t touch!'
+        window.clearInterval(dangerCtrl.timer)
+        dangerCtrl.timer = null
+        document.querySelector('html').style.setProperty('--card-speed', 1 + 's')
+        dangerCtrl.speed = 3
+      } else {
+        document.querySelector('#danger').innerHTML = '当前' + parseInt(3 - dangerCtrl.speed) + '档'
+        window.clearInterval(dangerCtrl.timer)
+        dangerCtrl.timer = setInterval(() => {
+          shuffle(0)
+        }, dangerCtrl.speed * 300 + 100)
+        document.querySelector('html').style.setProperty('--card-speed', [0.3, 0.5, 1][dangerCtrl.speed] + 's')
+      }
+    }
+
+    V.init(M, C)
+    C.init(M, V)
+    replay()
+
+  </script>
+</body>
+
+</html>
